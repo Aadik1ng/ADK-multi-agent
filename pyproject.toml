@@ -1,0 +1,14 @@
+[project]
+name = "adk-test"
+version = "0.1.0"
+description = "HIGH approach toADK"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "google-adk[database]>=1.16.0",
+    "google-generativeai>=0.8.5",
+    "litellm>=1.78.5",
+    "psutil>=7.1.1",
+    "python-dotenv>=1.1.1",
+    "yfinance>=0.2.66",
+]
