@@ -1,8 +1,16 @@
+import os
 import uuid
+
+# Configure OpenTelemetry BEFORE any ADK imports
+os.environ.setdefault("OTEL_SERVICE_NAME", "context_agent_app")
+os.environ.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
+os.environ.setdefault("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
+
 from google.adk.agents import SequentialAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+from context_agent_app.config import APP_NAME, DEFAULT_USER_ID, SessionKeys
 
 # Import all subagents
 from .subagents.entity_agent.agent import entity_agent
@@ -21,17 +29,16 @@ KnowledgeDBAgent.temp_session_service = InMemorySessionService()
 knowledgeDB_agent = KnowledgeDBAgent()
 
 initial_state = {
-    "user_name": "Brandon Hancock",
-    "user_query": "",
-    "interaction_history": [],
-    "entities": [],
-    "fetched_context": [],
-    "knowledge_graph": {},
-    "final_summary": "",
+    SessionKeys.USER_NAME: "Brandon Hancock",
+    SessionKeys.USER_QUERY: "",
+    SessionKeys.INTERACTION_HISTORY: [],
+    SessionKeys.ENTITIES: [],
+    SessionKeys.FETCHED_CONTEXT: [],
+    SessionKeys.KNOWLEDGE_GRAPH: {},
+    SessionKeys.FINAL_SUMMARY: "",
 }
 
-APP_NAME = "Brandon MultiAgent Bot"
-USER_ID = "brandon_hancock"
+USER_ID = DEFAULT_USER_ID
 SESSION_ID = str(uuid.uuid4())
 
 # ⚠️ ADK session creation is async — do this inside an async runner if needed.
@@ -78,8 +85,8 @@ def set_user_query(statements: list[str]):
         app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID
     )
     joined_query = "\n".join(statements).strip()
-    session.state["user_query"] = joined_query  # store as a string
-    session.state["interaction_history"].append({
+    session.state[SessionKeys.USER_QUERY] = joined_query  # store as a string
+    session.state[SessionKeys.INTERACTION_HISTORY].append({
         "action": "user_query",
         "statements": statements
     })
@@ -91,7 +98,7 @@ def add_agent_response(agent_name: str, response_text: str):
     session = session_service_stateful.get_session(
         app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID
     )
-    session.state["interaction_history"].append({
+    session.state[SessionKeys.INTERACTION_HISTORY].append({
         "action": "agent_response",
         "agent": agent_name,
         "response": response_text
@@ -104,7 +111,7 @@ async def process_query_from_web_gui(ctx):
     Triggered automatically by ADK Web when user submits a query.
     """
     # Retrieve query from session state (automatically managed by ADK Web)
-    statements = ctx.session.state.get("user_query", [])
+    statements = ctx.session.state.get(SessionKeys.USER_QUERY, [])
 
     if not statements or not isinstance(statements, list) or not any(s.strip() for s in statements):
         print("[EntityAgent] ⚠️ No valid query found in session state. Skipping processing.")
@@ -138,10 +145,10 @@ and provide an executive summary indicating agreements, disagreements, and sugge
         app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID
     )
     print("[Runner] Multi-agent analysis complete.")
-    print(f"  - Entities: {len(final_session.state.get('entities', []))}")
-    print(f"  - Contexts: {len(final_session.state.get('fetched_context', []))}")
-    print(f"  - Knowledge Graph Nodes: {len(final_session.state.get('knowledge_graph', {}))}")
-    print(f"  - Summary: {final_session.state.get('final_summary', 'N/A')[:120]}...")
+    print(f"  - Entities: {len(final_session.state.get(SessionKeys.ENTITIES, []))}")
+    print(f"  - Contexts: {len(final_session.state.get(SessionKeys.FETCHED_CONTEXT, []))}")
+    print(f"  - Knowledge Graph Nodes: {len(final_session.state.get(SessionKeys.KNOWLEDGE_GRAPH, {}))}")
+    print(f"  - Summary: {final_session.state.get(SessionKeys.FINAL_SUMMARY, 'N/A')[:120]}...")
     return final_session.state
 
 
